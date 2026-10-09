@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cinema XXI - 3D Theater Experience Simulator</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Crosshair for 3D Walk mode -->
+    <div id="crosshair" class="crosshair hidden">
+      <div class="dot"></div>
+      <div class="ring"></div>
+    </div>
+
+    <!-- In-Game Interaction Prompt HUD -->
+    <div id="interaction-prompt" class="interaction-prompt hidden">
+      <div class="key-badge">E</div>
+      <span class="prompt-text">Duduk di Kursi</span>
+    </div>
+
+    <!-- Seat Status Tooltip when looking at other seats -->
+    <div id="seat-tooltip" class="seat-tooltip hidden">
+      <span class="tooltip-icon">⚠️</span>
+      <span class="tooltip-text">Kursi ini milik penonton lain</span>
+    </div>
+
+    <!-- Theatre HUD Controls (Visible when in theater) -->
+    <div id="theater-hud" class="theater-hud hidden">
+      <!-- Top info bar -->
+      <header class="hud-top-bar">
+        <div class="brand-badge">
+          <span class="brand-logo">XXI</span>
+          <span class="studio-tag" id="hud-studio-tag">STUDIO 1 • PREMIERE</span>
+        </div>
+        <div class="ticket-status-pill">
+          <span class="pill-dot"></span>
+          <span id="hud-seat-display">Kursi: -</span>
+          <span class="divider">|</span>
+          <span id="hud-visitor-display">Tamu: -</span>
+        </div>
+        <div class="hud-top-actions">
+          <button id="btn-toggle-lights" class="hud-btn" title="Toggle Lampu Studio">
+            <span class="icon">💡</span>
+            <span class="lbl">Lampu</span>
+          </button>
+          <button id="btn-cinema-guide" class="hud-btn" title="Bantuan Navigasi">
+            <span class="icon">❓</span>
+            <span class="lbl">Kontrol</span>
+          </button>
+          <button id="btn-exit-to-lobby" class="hud-btn danger" title="Kembali ke Lobi">
+            <span class="icon">🚪</span>
+            <span class="lbl">Lobi</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Center Click to Walk Overlay (when cursor not locked) -->
+      <div id="pointerlock-overlay" class="pointerlock-overlay">
+        <div class="pointerlock-card">
+          <div class="mouse-icon">🖱️</div>
+          <h3>Klik Layar untuk Masuk & Melihat Sekeliling</h3>
+          <p>Gunakan tombol <strong>W, A, S, D</strong> untuk berjalan dan <strong>Mouse</strong> untuk menoleh.</p>
+          <div class="key-hints">
+            <span class="badge"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Jalan</span>
+            <span class="badge"><kbd>Shift</kbd> Lari</span>
+            <span class="badge"><kbd>E</kbd> Interaksi / Duduk</span>
+            <span class="badge"><kbd>Space</kbd> Berdiri</span>
+            <span class="badge"><kbd>Esc</kbd> Lepas Mouse</span>
+          </div>
+          <button id="btn-resume-lock" class="btn-gold-glow">Mulai Eksplorasi</button>
+        </div>
+      </div>
+
+      <!-- Seated Playback Controller (Visible when sitting) -->
+      <div id="seated-controls" class="seated-controls hidden">
+        <div class="controls-glass-panel">
+          <div class="movie-now-playing">
+            <div class="pulse-indicator"></div>
+            <div>
+              <div class="now-label">SEDANG TAYANG</div>
+              <div class="now-title" id="hud-movie-title">Film Bioskop</div>
+            </div>
+          </div>
+
+          <div class="video-timeline-wrap">
+            <span id="video-current-time" class="time-label">00:00</span>
+            <input type="range" id="video-progress" min="0" max="100" value="0" step="0.1" />
+            <span id="video-duration" class="time-label">00:00</span>
+          </div>
+
+          <div class="playback-buttons">
+            <button id="btn-play-pause" class="ctrl-btn" title="Play / Pause">
+              <span id="icon-play-pause">⏸️</span>
+            </button>
+            <button id="btn-rewind" class="ctrl-btn secondary" title="Mundur 10s">⏪ 10s</button>
+            <button id="btn-forward" class="ctrl-btn secondary" title="Maju 10s">⏩ 10s</button>
+            <div class="volume-container">
+              <button id="btn-volume-toggle" class="ctrl-btn secondary" title="Mute/Unmute">🔊</button>
+              <input type="range" id="video-volume" min="0" max="1" step="0.05" value="0.8" />
+            </div>
+            <button id="btn-change-video" class="ctrl-btn secondary" title="Ganti File Video">
+              🎞️ Ganti Film
+            </button>
+            <button id="btn-stand-up" class="ctrl-btn gold-action" title="Berdiri dari kursi">
+              🚶 Berdiri [Space]
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Guidance Floater (bottom left) -->
+      <div id="guide-floater" class="guide-floater">
+        <div class="guide-item"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Gerak</div>
+        <div class="guide-item"><kbd>Shift</kbd> Lari</div>
+        <div class="guide-item" id="guide-sit-hint"><kbd>E</kbd> Duduk di Kursi</div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODAL / OVERLAY FLOW SCREENS -->
+    <!-- ============================================== -->
+
+    <!-- STEP 1: LOGIN SCREEN -->
+    <div id="step-login" class="screen-backdrop active">
+      <div class="cinema-portal-card">
+        <div class="portal-header">
+          <div class="gold-crest">⚜️</div>
+          <h1 class="portal-title">XXI CINEMA</h1>
+          <p class="portal-subtitle">THEATER EXPERIENCE 3D SIMULATOR</p>
+        </div>
+
+        <form id="form-login" class="portal-form">
+          <div class="input-group">
+            <label for="input-username">Nama Pengunjung / Penonton</label>
+            <div class="input-wrapper">
+              <span class="input-icon">👤</span>
+              <input
+                type="text"
+                id="input-username"
+                placeholder="Contoh: Reynaldi"
+                maxlength="25"
+                required
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="select-membership">Tipe Pengalaman</label>
+            <div class="input-wrapper select-wrap">
+              <span class="input-icon">🎟️</span>
+              <select id="select-membership">
+                <option value="Deluxe">XXI Deluxe - Studio 1</option>
+                <option value="Premiere" selected>XXI The Premiere (VIP Velvet)</option>
+                <option value="IMAX">XXI IMAX Dolby Atmos Experience</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-login-submit" class="btn-primary-gold">
+            <span>Masuk ke Lobi Bioskop</span>
+            <span class="arrow-icon">➔</span>
+          </button>
+        </form>
+
+        <div class="portal-footer">
+          <span>✨ Audio Spasial • First-Person Navigation • Interactive Seating</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: MOVIE SELECTION SCREEN -->
+    <div id="step-movie" class="screen-backdrop">
+      <div class="movie-selection-container">
+        <div class="flow-header">
+          <button id="btn-back-to-login" class="btn-back">← Ganti Pengunjung</button>
+          <div class="flow-steps-indicator">
+            <span class="step-num done">1</span>
+            <span class="step-line"></span>
+            <span class="step-num current">2</span>
+            <span class="step-line"></span>
+            <span class="step-num">3</span>
+          </div>
+          <div class="user-greeting">
+            Halo, <strong id="greeting-username">Pengunjung</strong>!
+          </div>
+        </div>
+
+        <div class="section-title-wrap">
+          <h2>PILIH FILM HARI INI</h2>
+          <p>Tonton salah satu film unggulan atau putar video lokal favoritmu di layar teater 3D!</p>
+        </div>
+
+        <!-- Custom Local Video Picker Option -->
+        <div class="local-video-banner">
+          <div class="banner-icon">📁</div>
+          <div class="banner-info">
+            <h3>Punya Film Sendiri di Komputer?</h3>
+            <p>Pilih file video (.mp4, .webm, .mkv) langsung dari file komputermu untuk diputar di layar bioskop!</p>
+          </div>
+          <label class="btn-upload-local">
+            <input type="file" id="input-local-video" accept="video/mp4,video/webm,video/ogg,video/x-matroska" />
+            <span>📂 Pilih File Video Lokal</span>
+          </label>
+        </div>
+
+        <div class="movie-grid" id="movie-grid">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="flow-actions">
+          <button id="btn-proceed-to-seat" class="btn-primary-gold" disabled>
+            <span>Lanjut Pilih Kursi</span>
+            <span class="arrow-icon">➔</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: SEAT SELECTION SCREEN -->
+    <div id="step-seat" class="screen-backdrop">
+      <div class="seat-selection-container">
+        <div class="flow-header">
+          <button id="btn-back-to-movie" class="btn-back">← Ganti Film</button>
+          <div class="flow-steps-indicator">
+            <span class="step-num done">1</span>
+            <span class="step-line"></span>
+            <span class="step-num done">2</span>
+            <span class="step-line"></span>
+            <span class="step-num current">3</span>
+          </div>
+          <div class="selected-movie-tag">
+            <span class="dot"></span>
+            <span id="seat-screen-movie-title">Film Pilihan</span>
+          </div>
+        </div>
+
+        <div class="seat-map-card">
+          <div class="seat-map-header">
+            <h2>PILIH KURSI ANDA</h2>
+            <p>Hanya kursi yang Anda pilih yang akan bisa Anda duduki saat masuk ke dalam studio 3D nanti.</p>
+          </div>
+
+          <!-- Screen Graphic -->
+          <div class="screen-indicator-box">
+            <div class="curved-screen-bar"></div>
+            <span class="screen-text">LAYAR BIOSKOP</span>
+          </div>
+
+          <!-- Seats Grid -->
+          <div class="seat-plan-wrapper" id="seat-plan-wrapper">
+            <!-- Dynamically generated rows A-F -->
+          </div>
+
+          <!-- Legend -->
+          <div class="seat-legend">
+            <div class="legend-item">
+              <span class="seat-sample available"></span>
+              <span>Tersedia</span>
+            </div>
+            <div class="legend-item">
+              <span class="seat-sample selected"></span>
+              <span>Pilihan Anda</span>
+            </div>
+            <div class="legend-item">
+              <span class="seat-sample occupied"></span>
+              <span>Terisi (Tamu Lain)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cinema Ticket Preview -->
+        <div class="ticket-preview-box" id="ticket-preview">
+          <div class="ticket-left">
+            <div class="ticket-logo">XXI PREMIERE</div>
+            <div class="ticket-movie" id="ticket-movie-name">-</div>
+            <div class="ticket-meta">
+              <div><span>Studio:</span> <strong>Studio 1</strong></div>
+              <div><span>Pengunjung:</span> <strong id="ticket-user-name">-</strong></div>
+              <div><span>Audio:</span> <strong>Dolby Atmos 7.1</strong></div>
+            </div>
+          </div>
+          <div class="ticket-divider">
+            <div class="cutout-top"></div>
+            <div class="dashed-line"></div>
+            <div class="cutout-bottom"></div>
+          </div>
+          <div class="ticket-right">
+            <div class="ticket-seat-label">NOMOR KURSI</div>
+            <div class="ticket-seat-number" id="ticket-seat-display">PILIH</div>
+            <button id="btn-enter-theater" class="btn-enter-studio" disabled>
+              🎟️ Masuk ke Studio 3D
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden Video Player for Texture Source -->
+    <video
+      id="theater-video-element"
+      playsinline
+      webkit-playsinline
+      crossorigin="anonymous"
+      loop
+      style="position: fixed; top: -9999px; left: -9999px; width: 640px; height: 360px; opacity: 0; pointer-events: none;"
+    ></video>
+
+    <!-- Hidden Audio elements for UI sounds -->
+    <audio id="ambient-audio" loop></audio>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
