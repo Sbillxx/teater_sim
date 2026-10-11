@@ -213,9 +213,6 @@ export class CinemaScene {
     this.createExitSign(roomW / 2 - 0.1, 7.2, 11.5, -Math.PI / 2);
   }
 
-  /**
-   * Amber LED dot light on stair risers (matching glowing yellow dots in photo)
-   */
   createAmberStepDot(x, y, z) {
     const dotGeo = new THREE.SphereGeometry(0.035, 12, 12);
     const dotMat = new THREE.MeshBasicMaterial({
@@ -225,12 +222,6 @@ export class CinemaScene {
     const dot = new THREE.Mesh(dotGeo, dotMat);
     dot.position.set(x, y + 0.04, z);
     this.scene.add(dot);
-
-    // Localized subtle warm amber glow
-    const pointLight = new THREE.PointLight(0xff9911, 0.35, 2.0);
-    pointLight.position.set(x, y + 0.1, z + 0.1);
-    this.scene.add(pointLight);
-    this.houseLights.push({ light: pointLight, baseIntensity: 0.35 });
   }
 
   /**
@@ -336,18 +327,22 @@ export class CinemaScene {
       { name: 'G', z: 3.0, y: 5.05 }
     ];
 
+    // Shared Geometries for better performance
+    const geos = {
+      cushion: new THREE.BoxGeometry(0.74, 0.12, 0.65),
+      back: new THREE.BoxGeometry(0.72, 0.52, 0.14),
+      head: new THREE.BoxGeometry(0.66, 0.18, 0.15),
+      leg: new THREE.BoxGeometry(0.12, 0.36, 0.12),
+      arm: new THREE.BoxGeometry(0.10, 0.38, 0.58),
+      armPad: new THREE.BoxGeometry(0.11, 0.04, 0.58),
+      cup: new THREE.CylinderGeometry(0.045, 0.045, 0.07, 16),
+      num: new THREE.PlaneGeometry(0.16, 0.08)
+    };
+
     // 14 Seats per row divided into 3 blocks:
-    // Left Wing (Seats 1, 2, 3)
-    // Left Aisle (X from -4.9 to -3.7)
-    // Center Block (Seats 4, 5, 6, 7, 8, 9, 10, 11)
-    // Right Aisle (X from 3.7 to 4.9)
-    // Right Wing (Seats 12, 13, 14)
     const colXMap = [
-      // Left Wing: 1, 2, 3
       -7.5, -6.5, -5.5,
-      // Center Block: 4, 5, 6, 7, 8, 9, 10, 11
       -3.15, -2.25, -1.35, -0.45, 0.45, 1.35, 2.25, 3.15,
-      // Right Wing: 12, 13, 14
       5.5, 6.5, 7.5
     ];
 
@@ -359,7 +354,8 @@ export class CinemaScene {
         const seatGroup = this.createCinemaChair(
           seatVelvetMat,
           seatFrameMat,
-          seatId
+          seatId,
+          geos
         );
         seatGroup.position.set(xPos, row.y, row.z);
         this.scene.add(seatGroup);
@@ -380,51 +376,44 @@ export class CinemaScene {
    * Constructs an individual ergonomic cinema armchair matching the photo
    * Height from floor to headrest top: 0.90m (leaves complete sightline clearance)
    */
-  createCinemaChair(fabricMat, frameMat, seatId) {
+  createCinemaChair(fabricMat, frameMat, seatId, geos) {
     const group = new THREE.Group();
 
-    // 1. Cushion (dudukan empuk merah menyala)
-    const cushionGeo = new THREE.BoxGeometry(0.74, 0.12, 0.65);
-    const cushion = new THREE.Mesh(cushionGeo, fabricMat);
+    // 1. Cushion
+    const cushion = new THREE.Mesh(geos.cushion, fabricMat);
     cushion.position.set(0, 0.40, 0);
     group.add(cushion);
 
-    // 2. Backrest (sandaran punggung empuk sedikit miring)
-    const backGeo = new THREE.BoxGeometry(0.72, 0.52, 0.14);
-    const back = new THREE.Mesh(backGeo, fabricMat);
+    // 2. Backrest
+    const back = new THREE.Mesh(geos.back, fabricMat);
     back.position.set(0, 0.68, 0.26);
     back.rotation.x = -0.10;
     group.add(back);
 
     // 3. Headrest
-    const headGeo = new THREE.BoxGeometry(0.66, 0.18, 0.15);
-    const head = new THREE.Mesh(headGeo, fabricMat);
+    const head = new THREE.Mesh(geos.head, fabricMat);
     head.position.set(0, 0.88, 0.28);
     head.rotation.x = -0.12;
     group.add(head);
 
-    // 4. Base Leg Mount (pedestal baja hitam kokoh)
-    const legGeo = new THREE.BoxGeometry(0.12, 0.36, 0.12);
-    const leg = new THREE.Mesh(legGeo, frameMat);
+    // 4. Base Leg Mount
+    const leg = new THREE.Mesh(geos.leg, frameMat);
     leg.position.set(0, 0.18, 0);
     group.add(leg);
 
     // 5. Left & Right Armrests with Cup Holders
     [-0.41, 0.41].forEach((sideX) => {
-      const armGeo = new THREE.BoxGeometry(0.10, 0.38, 0.58);
-      const arm = new THREE.Mesh(armGeo, frameMat);
+      const arm = new THREE.Mesh(geos.arm, frameMat);
       arm.position.set(sideX, 0.45, 0.04);
       group.add(arm);
 
       // Arm cushion top
-      const armPadGeo = new THREE.BoxGeometry(0.11, 0.04, 0.58);
-      const armPad = new THREE.Mesh(armPadGeo, fabricMat);
+      const armPad = new THREE.Mesh(geos.armPad, fabricMat);
       armPad.position.set(sideX, 0.65, 0.04);
       group.add(armPad);
 
       // Cup holder cylinder ring at the front tip
-      const cupGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.07, 16);
-      const cup = new THREE.Mesh(cupGeo, frameMat);
+      const cup = new THREE.Mesh(geos.cup, frameMat);
       cup.position.set(sideX, 0.62, -0.24);
       group.add(cup);
     });
@@ -432,8 +421,7 @@ export class CinemaScene {
     // 6. Brass Seat Number Plate
     const numTex = TextureGenerator.createSeatNumberTexture(seatId);
     const numMat = new THREE.MeshBasicMaterial({ map: numTex });
-    const numGeo = new THREE.PlaneGeometry(0.16, 0.08);
-    const numPlate = new THREE.Mesh(numGeo, numMat);
+    const numPlate = new THREE.Mesh(geos.num, numMat);
     numPlate.position.set(0, 0.94, 0.20);
     numPlate.rotation.x = -0.12;
     group.add(numPlate);
@@ -449,8 +437,8 @@ export class CinemaScene {
     const videoTexture = this.videoManager.createTexture();
 
     // Curved screen geometry using segmented Plane
-    const screenW = 18.0;
-    const screenH = 8.5;
+    const screenW = 22.0;
+    const screenH = 10.5;
     const segmentsX = 48;
     const segmentsY = 12;
 
@@ -474,8 +462,8 @@ export class CinemaScene {
     });
 
     this.screenMesh = new THREE.Mesh(screenGeo, screenMat);
-    // Centered at Y = 6.2 (bottom at 1.95m, top at 10.45m), Z = -16.2
-    this.screenMesh.position.set(0, 6.2, -16.2);
+    // Centered at Y = 7.2 (bottom at 1.95m, top at 12.45m), Z = -16.2
+    this.screenMesh.position.set(0, 7.2, -16.2);
     this.scene.add(this.screenMesh);
 
     // Outer Screen Masking Frame (Black velvet border)
@@ -485,7 +473,7 @@ export class CinemaScene {
       roughness: 0.95
     });
     const frameMesh = new THREE.Mesh(frameGeo, frameMat);
-    frameMesh.position.set(0, 6.2, -16.7);
+    frameMesh.position.set(0, 7.2, -16.7);
     this.scene.add(frameMesh);
 
     // Screen Bottom Emblem Plate (• CINEMA XXI PREMIERE •)
@@ -555,12 +543,12 @@ export class CinemaScene {
     this.scene.add(this.ambientLight);
 
     // 2. Ceiling Recessed Downlights with Wall Scallops (matching photo)
-    [-8, -4, 0, 4, 8].forEach((xPos) => {
-      [-10, -4, 2, 8].forEach((zPos) => {
-        const downlight = new THREE.PointLight(0xffe2b0, 0.85, 14, 1.4);
+    [-8, 0, 8].forEach((xPos) => {
+      [-10, -1, 8].forEach((zPos) => {
+        const downlight = new THREE.PointLight(0xffe2b0, 1.5, 25, 1.4);
         downlight.position.set(xPos, 11.8, zPos);
         this.scene.add(downlight);
-        this.houseLights.push({ light: downlight, baseIntensity: 0.85 });
+        this.houseLights.push({ light: downlight, baseIntensity: 1.5 });
 
         // Visual fixture mesh
         const fixtureGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.08, 16);
@@ -572,23 +560,23 @@ export class CinemaScene {
     });
 
     // 3. Wall Scallop Spotlights along Wine-Burgundy Walls (matching photo)
-    const wallZSpots = [-12, -7, -2, 3, 8];
+    const wallZSpots = [-10, 0, 8];
     wallZSpots.forEach((zPos) => {
       // Left Wall Spotlights
-      const leftSpot = new THREE.SpotLight(0xffdfa8, 1.2, 14, Math.PI / 4, 0.5, 1.5);
+      const leftSpot = new THREE.SpotLight(0xffdfa8, 1.5, 20, Math.PI / 4, 0.5, 1.5);
       leftSpot.position.set(-11.0, 11.8, zPos);
       leftSpot.target.position.set(-11.9, 5.0, zPos);
       this.scene.add(leftSpot);
       this.scene.add(leftSpot.target);
-      this.houseLights.push({ light: leftSpot, baseIntensity: 1.2 });
+      this.houseLights.push({ light: leftSpot, baseIntensity: 1.5 });
 
       // Right Wall Spotlights
-      const rightSpot = new THREE.SpotLight(0xffdfa8, 1.2, 14, Math.PI / 4, 0.5, 1.5);
+      const rightSpot = new THREE.SpotLight(0xffdfa8, 1.5, 20, Math.PI / 4, 0.5, 1.5);
       rightSpot.position.set(11.0, 11.8, zPos);
       rightSpot.target.position.set(11.9, 5.0, zPos);
       this.scene.add(rightSpot);
       this.scene.add(rightSpot.target);
-      this.houseLights.push({ light: rightSpot, baseIntensity: 1.2 });
+      this.houseLights.push({ light: rightSpot, baseIntensity: 1.5 });
     });
 
     // 4. Back Wall Wash Downlights (matching spotlights in photo above rear seats)
